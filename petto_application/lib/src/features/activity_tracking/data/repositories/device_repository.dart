@@ -17,6 +17,10 @@ class DeviceModel {
   final double? lastLat;
   final double? lastLng;
   final DateTime? lastSeenAt;
+  final double? lastSpeedKmh;
+  final double? lastAccuracyM;
+  final DateTime? lastMovedAt;
+  final String motionState;
 
   DeviceModel({
     required this.id,
@@ -29,6 +33,10 @@ class DeviceModel {
     this.lastLat,
     this.lastLng,
     this.lastSeenAt,
+    this.lastSpeedKmh,
+    this.lastAccuracyM,
+    this.lastMovedAt,
+    this.motionState = 'unknown',
   });
 
   factory DeviceModel.fromJson(Map<String, dynamic> json) => DeviceModel(
@@ -44,7 +52,17 @@ class DeviceModel {
     lastSeenAt: json['last_seen_at'] != null
         ? DateTime.tryParse(json['last_seen_at'] as String)
         : null,
+    lastSpeedKmh: (json['last_speed_kmh'] as num?)?.toDouble(),
+    lastAccuracyM: (json['last_accuracy_m'] as num?)?.toDouble(),
+    lastMovedAt: json['last_moved_at'] == null ? null : DateTime.tryParse(json['last_moved_at'] as String),
+    motionState: json['motion_state'] as String? ?? 'unknown',
   );
+}
+
+class DeviceAlertModel {
+  const DeviceAlertModel({required this.id, required this.deviceId, required this.type, required this.severity, required this.message, required this.detectedAt, this.acknowledgedAt, this.resolvedAt});
+  final int id, deviceId; final String type, severity, message; final DateTime detectedAt; final DateTime? acknowledgedAt, resolvedAt;
+  factory DeviceAlertModel.fromJson(Map<String, dynamic> json) => DeviceAlertModel(id: json['id'] as int, deviceId: json['device_id'] as int, type: json['alert_type'] as String, severity: json['severity'] as String, message: json['message'] as String, detectedAt: DateTime.parse(json['detected_at'] as String), acknowledgedAt: json['acknowledged_at'] == null ? null : DateTime.parse(json['acknowledged_at'] as String), resolvedAt: json['resolved_at'] == null ? null : DateTime.parse(json['resolved_at'] as String));
 }
 
 /// Pairing + live-position API for Mode B tracking (SRS-F4-035..038).
@@ -81,12 +99,15 @@ abstract class DeviceRepository {
     required String identifier,
   });
   Future<void> unpairDevice(int deviceId);
+  Future<List<DeviceAlertModel>> listAlerts(int petId);
+  Future<DeviceAlertModel> acknowledgeAlert(int alertId);
   Future<TelemetryResultModel> ingestTelemetry({
     required int deviceId,
     required List<Map<String, dynamic>> samples,
     int? batteryPercent,
     double? sessionDurationMinutes,
     double? sessionDistanceMeters,
+    String? sessionId,
   });
 }
 
@@ -124,12 +145,25 @@ class DeviceRepositoryImpl implements DeviceRepository {
   }
 
   @override
+  Future<List<DeviceAlertModel>> listAlerts(int petId) async {
+    final response = await dio.get('${AppConfig.apiPrefix}/pets/$petId/device-alerts');
+    return (response.data as List).map((e) => DeviceAlertModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  @override
+  Future<DeviceAlertModel> acknowledgeAlert(int alertId) async {
+    final response = await dio.post('${AppConfig.apiPrefix}/device-alerts/$alertId/acknowledge');
+    return DeviceAlertModel.fromJson(Map<String, dynamic>.from(response.data as Map));
+  }
+
+  @override
   Future<TelemetryResultModel> ingestTelemetry({
     required int deviceId,
     required List<Map<String, dynamic>> samples,
     int? batteryPercent,
     double? sessionDurationMinutes,
     double? sessionDistanceMeters,
+    String? sessionId,
   }) async {
     final response = await dio.post(
       '${AppConfig.apiPrefix}/devices/$deviceId/telemetry',
@@ -140,6 +174,7 @@ class DeviceRepositoryImpl implements DeviceRepository {
           'session_duration_minutes': sessionDurationMinutes,
         if (sessionDistanceMeters != null)
           'session_distance_meters': sessionDistanceMeters,
+        if (sessionId != null) 'session_id': sessionId,
       },
     );
     return TelemetryResultModel.fromJson(

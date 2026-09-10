@@ -5,6 +5,7 @@ import 'package:petto_application/src/features/activity_tracking/presentation/co
 
 class _FakeDeviceRepository implements DeviceRepository {
   DeviceModel? device;
+  final List<DeviceAlertModel> alerts = [];
 
   DeviceModel _device({int battery = 100, double? lat, double? lng}) =>
       DeviceModel(
@@ -26,6 +27,12 @@ class _FakeDeviceRepository implements DeviceRepository {
   ];
 
   @override
+  Future<List<DeviceAlertModel>> listAlerts(int petId) async => alerts;
+
+  @override
+  Future<DeviceAlertModel> acknowledgeAlert(int alertId) async => alerts.firstWhere((a) => a.id == alertId);
+
+  @override
   Future<DeviceModel> pairDevice({
     required int petId,
     required String name,
@@ -39,6 +46,7 @@ class _FakeDeviceRepository implements DeviceRepository {
     int? batteryPercent,
     double? sessionDurationMinutes,
     double? sessionDistanceMeters,
+    String? sessionId,
   }) async {
     final abnormal = (samples.first['speed_kmh'] as num) > 35;
     device = _device(

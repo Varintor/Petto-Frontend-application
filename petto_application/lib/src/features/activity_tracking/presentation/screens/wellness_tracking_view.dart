@@ -8,6 +8,7 @@ import '../controllers/device_tracking_controller.dart';
 import '../../../missions/presentation/controllers/missions_controller.dart';
 import '../../data/repositories/device_repository.dart';
 import 'live_walk_screen.dart';
+import 'live_device_tracking_screen.dart';
 
 /// Content of the "wellness" tab (map icon in the dock).
 ///
@@ -172,6 +173,7 @@ class _WellnessTrackingViewState extends State<WellnessTrackingView> {
                 onSimulateAlert: () =>
                     deviceController.simulateTelemetry(anomaly: true),
                 onUnpair: deviceController.unpair,
+                onViewMap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LiveDeviceTrackingScreen())),
               ),
             ],
           ],
@@ -217,6 +219,7 @@ class _DeviceStatusCard extends StatelessWidget {
     required this.onSimulate,
     required this.onSimulateAlert,
     required this.onUnpair,
+    required this.onViewMap,
   });
 
   final DeviceModel device;
@@ -225,6 +228,7 @@ class _DeviceStatusCard extends StatelessWidget {
   final Future<bool> Function() onSimulate;
   final Future<bool> Function() onSimulateAlert;
   final Future<bool> Function() onUnpair;
+  final VoidCallback onViewMap;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -268,6 +272,7 @@ class _DeviceStatusCard extends StatelessWidget {
                 icon: const Icon(Icons.route_rounded),
                 label: const Text('Simulate walk'),
               ),
+              OutlinedButton.icon(onPressed: device.lastLat == null ? null : onViewMap, icon: const Icon(Icons.map), label: const Text('View Live Map')),
               OutlinedButton.icon(
                 onPressed: busy ? null : onSimulateAlert,
                 icon: const Icon(Icons.warning_amber_rounded),

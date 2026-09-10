@@ -65,6 +65,7 @@ class PettoApp extends StatefulWidget {
 class _PettoAppState extends State<PettoApp> {
   StreamSubscription<AuthState>? _authSubscription;
   bool _recoveringPassword = false;
+  bool _acceptingInvitation = false;
 
   @override
   void initState() {
@@ -72,10 +73,21 @@ class _PettoAppState extends State<PettoApp> {
     try {
       _authSubscription = Supabase.instance.client.auth.onAuthStateChange
           .listen((state) {
-            if (state.event == AuthChangeEvent.passwordRecovery && mounted) {
-              setState(() => _recoveringPassword = true);
+            if (!mounted) return;
+            final invitedVet =
+                state.session?.user.userMetadata?['petto_invited_vet'] == true;
+            if (invitedVet) {
+              setState(() {
+                _recoveringPassword = true;
+                _acceptingInvitation = true;
+              });
+            } else if (state.event == AuthChangeEvent.passwordRecovery) {
+              setState(() {
+                _recoveringPassword = true;
+                _acceptingInvitation = false;
+              });
             }
-          });
+          }, onError: (_, _) {});
     } catch (_) {
       // Widget tests can render PettoApp without running the async main().
     }
@@ -173,8 +185,14 @@ class _PettoAppState extends State<PettoApp> {
         themeMode: ThemeMode.light,
         home: _recoveringPassword
             ? PasswordRecoveryScreen(
+                isInvitation: _acceptingInvitation,
                 onComplete: () {
-                  if (mounted) setState(() => _recoveringPassword = false);
+                  if (mounted) {
+                    setState(() {
+                      _recoveringPassword = false;
+                      _acceptingInvitation = false;
+                    });
+                  }
                 },
               )
             : const AuthGate(),

@@ -4,6 +4,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:petto_application/src/features/auth/presentation/screens/password_recovery_screen.dart';
 
 void main() {
+  testWidgets('invited veterinarian is prompted to finish account setup', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PasswordRecoveryScreen(
+          isInvitation: true,
+          updatePassword: (_) async {},
+          onComplete: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Set up your veterinarian account'), findsOneWidget);
+    expect(
+      find.text('Create a password to finish accepting your Petto invitation.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('validates confirmation and updates the recovered password', (
     tester,
   ) async {

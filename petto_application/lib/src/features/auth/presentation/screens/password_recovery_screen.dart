@@ -6,10 +6,12 @@ class PasswordRecoveryScreen extends StatefulWidget {
     super.key,
     required this.onComplete,
     this.updatePassword,
+    this.isInvitation = false,
   });
 
   final VoidCallback onComplete;
   final Future<void> Function(String password)? updatePassword;
+  final bool isInvitation;
 
   @override
   State<PasswordRecoveryScreen> createState() => _PasswordRecoveryScreenState();
@@ -50,7 +52,12 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
         await update(password);
       } else {
         await Supabase.instance.client.auth.updateUser(
-          UserAttributes(password: password),
+          UserAttributes(
+            password: password,
+            data: widget.isInvitation
+                ? const {'petto_invited_vet': false}
+                : null,
+          ),
         );
         await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
       }
@@ -87,14 +94,18 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                       const Icon(Icons.lock_reset_rounded, size: 56),
                       const SizedBox(height: 16),
                       Text(
-                        'Create a new password',
+                        widget.isInvitation
+                            ? 'Set up your veterinarian account'
+                            : 'Create a new password',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Use at least 6 characters. This link can be used only for this recovery session.',
+                      Text(
+                        widget.isInvitation
+                            ? 'Create a password to finish accepting your Petto invitation.'
+                            : 'Use at least 6 characters. This link can be used only for this recovery session.',
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),

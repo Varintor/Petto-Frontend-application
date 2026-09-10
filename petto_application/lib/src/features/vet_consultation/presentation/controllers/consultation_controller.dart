@@ -178,7 +178,7 @@ class ConsultationController extends ChangeNotifier {
     _sharedHealthCards = [];
     // A read receipt is best-effort and must never delay rendering the thread.
     unawaited(_markReadBestEffort(consultation.id));
-    await _guard(() async {
+    await _guardActiveConversation(consultation.id, () async {
       final results = await Future.wait<Object?>([
         repository.listMessages(consultation.id),
         repository.listAppointments(consultation.id),
@@ -284,7 +284,8 @@ class ConsultationController extends ChangeNotifier {
         notifyListeners();
         if (hasNewMessage) await _markReadBestEffort(active.id);
       }
-    } catch (_) {
+    } catch (error) {
+      _handleRealtimeReadFailure(error, active.id);
       // Realtime will continue reconnecting. The user can also request an
       // explicit refresh; no periodic REST polling is performed.
     } finally {
@@ -315,7 +316,8 @@ class ConsultationController extends ChangeNotifier {
         _appointments = latest;
         notifyListeners();
       }
-    } catch (_) {
+    } catch (error) {
+      _handleRealtimeReadFailure(error, active.id);
       // The next database event, reconnect, or manual refresh will retry.
     } finally {
       _refreshingAppointments = false;
@@ -336,7 +338,8 @@ class ConsultationController extends ChangeNotifier {
         _sharedAssessments = latest;
         notifyListeners();
       }
-    } catch (_) {
+    } catch (error) {
+      _handleRealtimeReadFailure(error, active.id);
       // The next database event, reconnect, or manual refresh will retry.
     } finally {
       _refreshingSharedAssessments = false;
@@ -358,7 +361,8 @@ class ConsultationController extends ChangeNotifier {
         _sharedHealthCards = latest;
         notifyListeners();
       }
-    } catch (_) {
+    } catch (error) {
+      _handleRealtimeReadFailure(error, active.id);
       // The next database event, reconnect, or manual refresh will retry.
     } finally {
       _refreshingSharedHealthCards = false;
@@ -376,7 +380,7 @@ class ConsultationController extends ChangeNotifier {
   Future<void> refreshMessages() async {
     final active = _active;
     if (active == null) return;
-    await _guard(() async {
+    await _guardActiveConversation(active.id, () async {
       final results = await Future.wait<Object?>([
         repository.listMessages(active.id),
         repository.listAppointments(active.id),
@@ -609,6 +613,8 @@ class ConsultationController extends ChangeNotifier {
     _messages = [];
     _appointments = [];
     _sharedAssessments = [];
+    _sharedHealthCards = [];
+    _sharingHealthCard = false;
     _loading = false;
     _refreshingMessages = false;
     _messagesRefreshPending = false;
@@ -639,6 +645,52 @@ class ConsultationController extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _guardActiveConversation(
+    int consultationId,
+    Future<void> Function() body,
+  ) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await body();
+    } catch (error) {
+      if (ApiClient.isAccessBoundaryFailure(error)) {
+        _discardInaccessibleConversation(consultationId);
+      }
+      _error = ApiClient.describeError(error);
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  void _handleRealtimeReadFailure(Object error, int consultationId) {
+    if (!ApiClient.isAccessBoundaryFailure(error) ||
+        _active?.id != consultationId) {
+      return;
+    }
+    _discardInaccessibleConversation(consultationId);
+    _error = ApiClient.describeError(error);
+    notifyListeners();
+  }
+
+  void _discardInaccessibleConversation(int consultationId) {
+    if (_active?.id != consultationId) return;
+    _consultations = _consultations
+        .where((item) => item.id != consultationId)
+        .toList();
+    _active = null;
+    _messages = [];
+    _appointments = [];
+    _sharedAssessments = [];
+    _sharedHealthCards = [];
+    _sharingHealthCard = false;
+    _realtimeConnected = false;
+    _hasRealtimeSubscribed = false;
+    unawaited(realtimeGateway.stop());
   }
 
   @override

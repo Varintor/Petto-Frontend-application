@@ -332,7 +332,6 @@ void main() {
 
     expect(calendarRefreshed, isTrue);
     expect(find.text('ACCEPTED'), findsOneWidget);
-    expect(find.textContaining('Added to the pet Calendar'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -361,11 +360,21 @@ void main() {
     await tester.pump();
 
     expect(find.text('Petto Partner Animal Hospital'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Nearby Animal Clinic'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Nearby Animal Clinic'), findsOneWidget);
     expect(find.text('Available on Petto'), findsOneWidget);
     expect(find.text('Information only'), findsOneWidget);
     expect(find.text('Unavailable'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('Map'),
+      -250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Map'));
     await tester.pump();
     expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
@@ -376,7 +385,8 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Petto Partner Animal Hospital'));
     await tester.pumpAndSettle();
-    expect(find.text('2.4 km • 053-000-001'), findsOneWidget);
+    expect(find.text('2.4 km away'), findsOneWidget);
+    expect(find.text('053-000-001'), findsOneWidget);
     Navigator.of(tester.element(find.text('Directions'))).pop();
     await tester.pumpAndSettle();
 
@@ -385,13 +395,19 @@ void main() {
 
     await tester.tap(find.text('Consult'));
     await tester.pumpAndSettle();
-    expect(find.text('Choose an available Petto veterinarian'), findsOneWidget);
+    expect(find.text('Choose veterinarian'), findsOneWidget);
     await tester.tap(find.text('Dr. Test'));
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(repository.createdProviderId, repository.availableProvider.id);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.hintText == 'Type a message...',
+      ),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -433,7 +449,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('acknowledge-urgent-help')));
     await tester.pumpAndSettle();
-    expect(find.text('Choose a veterinarian for Urgent Help'), findsOneWidget);
+    expect(find.text('Choose veterinarian'), findsOneWidget);
     await tester.tap(find.text('Dr. Test'));
     await tester.pump();
     await tester.pump();

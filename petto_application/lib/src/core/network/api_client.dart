@@ -212,4 +212,15 @@ class ApiClient {
         return 'Could not complete the request. Please retry.';
     }
   }
+
+  /// True when the backend says the current account may no longer read the
+  /// requested resource. Screens must discard cached sensitive data for these
+  /// responses instead of continuing to render an old successful response.
+  static bool isAccessBoundaryFailure(Object error) {
+    if (error is! DioException) return false;
+    return switch (error.response?.statusCode) {
+      401 || 403 || 404 => true,
+      _ => false,
+    };
+  }
 }

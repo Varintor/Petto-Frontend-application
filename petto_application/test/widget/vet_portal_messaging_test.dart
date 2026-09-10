@@ -170,6 +170,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Milo is still scratching.'), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('vet-request-health-card')));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      "Please share Milo's Pet Health Card so I can review the latest health information.",
+    );
+    await tester.tap(find.byTooltip('Send message'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining("share Milo's Pet Health Card"), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('vet-quick-reply-photo')));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'Please send a clear photo of the affected area.',
+    );
+
     await tester.enterText(find.byType(TextField), 'Please send a new photo.');
     await tester.tap(find.byTooltip('Send message'));
     await tester.pump(const Duration(milliseconds: 300));

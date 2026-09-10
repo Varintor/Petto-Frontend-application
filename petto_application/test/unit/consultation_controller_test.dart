@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:petto_application/src/features/vet_consultation/data/models/consultation_models.dart';
@@ -260,6 +261,31 @@ class _ControlledOpenRepository extends _FakeConsultationRepository {
   }
 }
 
+class _AccessRevokedRepository extends _FakeConsultationRepository {
+  int? failureStatus;
+
+  @override
+  Future<List<ChatMessageModel>> listMessages(
+    int consultationId, {
+    int? afterId,
+  }) async {
+    final status = failureStatus;
+    if (status != null) {
+      final request = RequestOptions(path: '/consultations/$consultationId');
+      throw DioException(
+        requestOptions: request,
+        response: Response<dynamic>(
+          requestOptions: request,
+          statusCode: status,
+          data: {'detail': 'Consultation not found'},
+        ),
+        type: DioExceptionType.badResponse,
+      );
+    }
+    return super.listMessages(consultationId, afterId: afterId);
+  }
+}
+
 class _FakeHealthCardSharingRepository implements HealthCardSharingRepository {
   final cards = <SharedHealthCardModel>[];
   int listCalls = 0;
@@ -350,6 +376,65 @@ class _FakeRealtimeGateway implements ConsultationRealtimeGateway {
 }
 
 void main() {
+  for (final status in [401, 403, 404]) {
+    test(
+      'a $status refresh discards all cached consultation health data',
+      () async {
+        final repository = _AccessRevokedRepository();
+        repository.messages.add(
+          ChatMessageModel(
+            id: 1,
+            consultationId: repository.consultation.id,
+            senderType: 'user',
+            content: 'Sensitive message',
+            createdAt: DateTime(2026, 8, 13),
+          ),
+        );
+        repository.sharedAssessments.add(
+          SharedAssessmentModel(
+            id: 80,
+            consultationId: repository.consultation.id,
+            assessmentId: 91,
+            symptomDescription: 'Sensitive assessment',
+            status: 'failed',
+            sharedAt: DateTime(2026, 8, 14),
+            createdAt: DateTime(2026, 8, 13),
+          ),
+        );
+        final sharing = _FakeHealthCardSharingRepository();
+        await sharing.shareHealthCard(repository.consultation.id);
+        final realtime = _FakeRealtimeGateway();
+        final controller = ConsultationController(
+          repository: repository,
+          healthCardRepository: sharing,
+          realtimeGateway: realtime,
+        );
+
+        await controller.loadVetConsultations();
+        await controller.openConsultation(
+          repository.consultation,
+          realtimeAccessToken: 'access-token',
+        );
+        expect(controller.messages, isNotEmpty);
+        expect(controller.sharedAssessments, isNotEmpty);
+        expect(controller.sharedHealthCards, isNotEmpty);
+
+        repository.failureStatus = status;
+        await controller.refreshMessages();
+
+        expect(controller.active, isNull);
+        expect(controller.consultations, isEmpty);
+        expect(controller.messages, isEmpty);
+        expect(controller.appointments, isEmpty);
+        expect(controller.sharedAssessments, isEmpty);
+        expect(controller.sharedHealthCards, isEmpty);
+        expect(controller.realtimeConnected, isFalse);
+        expect(realtime.stopped, isTrue);
+        expect(controller.error, isNotNull);
+      },
+    );
+  }
+
   test(
     'vet loads assigned consultation, opens it, and sends a reply',
     () async {

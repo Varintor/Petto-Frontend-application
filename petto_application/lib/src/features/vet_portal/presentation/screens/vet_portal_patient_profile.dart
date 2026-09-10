@@ -1,0 +1,849 @@
+part of 'vet_portal_screen.dart';
+
+class _ProfileView extends StatelessWidget {
+  const _ProfileView({
+    required this.vetName,
+    required this.email,
+    required this.onLogout,
+  });
+
+  final String vetName;
+  final String email;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VetScroll(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PageTitle(
+            title: 'Profile',
+            subtitle: 'Clinic account and working preferences.',
+          ),
+          const SizedBox(height: 18),
+          _Panel(
+            child: Row(
+              children: [
+                const _InitialBadge(initial: 'S', large: true),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vetName,
+                        style: const TextStyle(
+                          color: AppTheme.secondaryText,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          fontFamily: AppTheme.displayFontFamily,
+                        ),
+                      ),
+                      Text(
+                        email,
+                        style: TextStyle(
+                          color: AppTheme.mutedText,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const _ProfileTile(
+            icon: Icons.medical_services_rounded,
+            title: 'Specialty',
+            value: 'General wellness',
+          ),
+          const _ProfileTile(
+            icon: Icons.schedule_rounded,
+            title: 'Clinic hours',
+            value: '09:00 - 18:00',
+          ),
+          const _ProfileTile(
+            icon: Icons.verified_rounded,
+            title: 'Status',
+            value: 'Available for care team chat',
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: 220,
+            height: 58,
+            child: FilledButton.icon(
+              onPressed: onLogout,
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Log out'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientDetailsScreen extends StatelessWidget {
+  const _PatientDetailsScreen({required this.patient});
+
+  final _Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _VetBackground()),
+          SafeArea(
+            child: _VetScroll(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: AppTheme.primaryColor,
+                  ),
+                  const SizedBox(height: 8),
+                  _PatientDetails(patient: patient),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VetScroll extends StatelessWidget {
+  const _VetScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 28),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _PageTitle extends StatelessWidget {
+  const _PageTitle({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppTheme.secondaryText,
+            fontSize: 34,
+            fontWeight: FontWeight.w900,
+            fontFamily: AppTheme.displayFontFamily,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            color: AppTheme.mutedText,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroPanel extends StatelessWidget {
+  const _HeroPanel({
+    required this.title,
+    required this.subtitle,
+    required this.actionText,
+    required this.onAction,
+  });
+
+  final String title;
+  final String subtitle;
+  final String actionText;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tight = constraints.maxWidth < 620;
+        return _Panel(
+          highlighted: true,
+          padding: const EdgeInsets.all(18),
+          child: tight
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _HeroPanelCopy(title: title, subtitle: subtitle),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 48,
+                      child: _HeroPanelButton(
+                        text: actionText,
+                        onPressed: onAction,
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: _HeroPanelCopy(title: title, subtitle: subtitle),
+                    ),
+                    const SizedBox(width: 14),
+                    SizedBox(
+                      height: 48,
+                      child: _HeroPanelButton(
+                        text: actionText,
+                        onPressed: onAction,
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _HeroPanelCopy extends StatelessWidget {
+  const _HeroPanelCopy({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(21),
+          ),
+          child: const Icon(
+            Icons.monitor_heart_rounded,
+            color: AppTheme.primaryColor,
+            size: 29,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: AppTheme.displayFontFamily,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: Color(0xFFF6E3E4),
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroPanelButton extends StatelessWidget {
+  const _HeroPanelButton({required this.text, required this.onPressed});
+
+  final String text;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.forum_rounded, size: 18),
+      label: Text(text),
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: AppTheme.primaryColor,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        textStyle: const TextStyle(fontWeight: FontWeight.w900),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _TintIcon(icon: icon, compact: true),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppTheme.secondaryText,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: AppTheme.displayFontFamily,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.mutedText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.action,
+    required this.onAction,
+  });
+
+  final String title;
+  final String action;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 7,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.secondaryText,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              fontFamily: AppTheme.displayFontFamily,
+            ),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: onAction,
+          icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+          label: Text(action),
+          style: TextButton.styleFrom(
+            foregroundColor: AppTheme.primaryColor,
+            textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PatientRow extends StatelessWidget {
+  const _PatientRow({
+    required this.patient,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final _Patient patient;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ListCard(
+      selected: selected,
+      onTap: onTap,
+      leading: _PetBadge(species: patient.species),
+      title: patient.name,
+      subtitle: '${patient.species} • ${patient.owner}',
+      trailing: _RiskPill(label: patient.risk),
+      footer: patient.note,
+    );
+  }
+}
+
+class _ListCard extends StatelessWidget {
+  const _ListCard({
+    required this.leading,
+    required this.title,
+    required this.subtitle,
+    required this.footer,
+    required this.onTap,
+    this.trailing,
+    this.selected = false,
+  });
+
+  final Widget leading;
+  final String title;
+  final String subtitle;
+  final String footer;
+  final Widget? trailing;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(26),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: selected ? _VetUi.blush : _VetUi.surface,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: selected
+                  ? AppTheme.primaryColor.withValues(alpha: 0.42)
+                  : _VetUi.border,
+              width: selected ? 1.7 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _VetUi.softShadow,
+                blurRadius: 14,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leading,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppTheme.secondaryText,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        ?trailing,
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: AppTheme.mutedText,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      footer,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.mutedText,
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientDetails extends StatelessWidget {
+  const _PatientDetails({required this.patient});
+
+  final _Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Panel(
+          padding: const EdgeInsets.all(18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 520;
+              final identity = Row(
+                children: [
+                  _PetBadge(species: patient.species, large: true),
+                  const SizedBox(width: 16),
+                  Expanded(child: _PatientIdentity(patient: patient)),
+                ],
+              );
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    identity,
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _RiskPill(label: patient.risk),
+                        const _CareTag(label: 'Shared record'),
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: identity),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _RiskPill(label: patient.risk),
+                      const SizedBox(height: 8),
+                      const _CareTag(label: 'Shared record'),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+        _PatientInfoGrid(patient: patient),
+        const SizedBox(height: 14),
+        _ClinicalNotesPanel(patient: patient),
+      ],
+    );
+  }
+}
+
+class _PatientIdentity extends StatelessWidget {
+  const _PatientIdentity({required this.patient});
+
+  final _Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          patient.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppTheme.secondaryText,
+            fontSize: 33,
+            fontWeight: FontWeight.w900,
+            fontFamily: AppTheme.displayFontFamily,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Wrap(
+          spacing: 7,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _MiniTimePill(text: patient.species),
+            Text(
+              patient.owner,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.mutedText,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              patient.age,
+              style: TextStyle(
+                color: AppTheme.mutedText.withValues(alpha: 0.82),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PatientInfoGrid extends StatelessWidget {
+  const _PatientInfoGrid({required this.patient});
+
+  final _Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _InfoItem(
+        icon: Icons.monitor_weight_rounded,
+        label: 'Weight',
+        value: patient.weight,
+        accent: const Color(0xFFD3A33B),
+      ),
+      _InfoItem(
+        icon: Icons.bloodtype_rounded,
+        label: 'Blood',
+        value: patient.blood,
+        accent: AppTheme.primaryColor,
+      ),
+      _InfoItem(
+        icon: Icons.event_available_rounded,
+        label: 'Last visit',
+        value: patient.lastVisit,
+        accent: const Color(0xFF8F6F4E),
+      ),
+      _InfoItem(
+        icon: Icons.task_alt_rounded,
+        label: 'Care plan',
+        value: patient.plan,
+        accent: const Color(0xFF71875A),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 620 ? 2 : 4;
+        final spacing = 10.0;
+        final tileWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final item in items)
+              SizedBox(
+                width: tileWidth.clamp(138.0, constraints.maxWidth).toDouble(),
+                child: _InfoTile(item: item),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _InfoItem {
+  const _InfoItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color accent;
+}
+
+class _CareTag extends StatelessWidget {
+  const _CareTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF5E7),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: const Color(0xFFE8CFA9)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.verified_rounded,
+            color: Color(0xFFD3A33B),
+            size: 15,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.secondaryText,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClinicalNotesPanel extends StatelessWidget {
+  const _ClinicalNotesPanel({required this.patient});
+
+  final _Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const _TintIcon(icon: Icons.notes_rounded, compact: true),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Clinical Notes',
+                  style: TextStyle(
+                    color: AppTheme.secondaryText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: AppTheme.displayFontFamily,
+                  ),
+                ),
+              ),
+              _MiniTimePill(text: '${patient.timeline.length} notes'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (var i = 0; i < patient.timeline.length; i++)
+            _ClinicalNoteRow(
+              text: patient.timeline[i],
+              last: i == patient.timeline.length - 1,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClinicalNoteRow extends StatelessWidget {
+  const _ClinicalNoteRow({required this.text, required this.last});
+
+  final String text;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: last ? 0 : 10),
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: last ? _VetUi.cream : _VetUi.blush.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.primaryColor.withValues(alpha: 0.07),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SmallDot(),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: AppTheme.mutedText,
+                  height: 1.35,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

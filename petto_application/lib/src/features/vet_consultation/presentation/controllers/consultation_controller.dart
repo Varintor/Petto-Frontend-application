@@ -15,17 +15,22 @@ class ConsultationController extends ChangeNotifier {
   final ConsultationRepository repository;
   final HealthCardSharingRepository? healthCardRepository;
   final ConsultationRealtimeGateway realtimeGateway;
+  final VetConsultationInboxRealtimeGateway vetInboxRealtimeGateway;
 
   ConsultationController({
     ConsultationRepository? repository,
     HealthCardSharingRepository? healthCardRepository,
     ConsultationRealtimeGateway? realtimeGateway,
+    VetConsultationInboxRealtimeGateway? vetInboxRealtimeGateway,
   }) : repository = repository ?? ConsultationRepositoryImpl(),
        healthCardRepository =
            healthCardRepository ??
            (repository == null ? HealthCardSharingRepositoryImpl() : null),
        realtimeGateway =
-           realtimeGateway ?? SupabaseConsultationRealtimeGateway();
+           realtimeGateway ?? SupabaseConsultationRealtimeGateway(),
+       vetInboxRealtimeGateway =
+           vetInboxRealtimeGateway ??
+           SupabaseVetConsultationInboxRealtimeGateway();
 
   List<VetModel> _vets = [];
   List<VeterinaryProviderModel> _providers = [];
@@ -48,6 +53,10 @@ class ConsultationController extends ChangeNotifier {
   bool _sharedHealthCardsRefreshPending = false;
   bool _realtimeConnected = false;
   bool _hasRealtimeSubscribed = false;
+  bool _vetInboxRealtimeConnected = false;
+  bool _hasVetInboxRealtimeSubscribed = false;
+  bool _refreshingVetInbox = false;
+  bool _vetInboxRefreshPending = false;
   String? _error;
   String? _retryContent;
   String? _retryClientMessageId;
@@ -65,6 +74,7 @@ class ConsultationController extends ChangeNotifier {
   bool get loading => _loading;
   bool get refreshingMessages => _refreshingMessages;
   bool get realtimeConnected => _realtimeConnected;
+  bool get vetInboxRealtimeConnected => _vetInboxRealtimeConnected;
   String? get error => _error;
 
   Future<void> loadVets() async {
@@ -94,9 +104,96 @@ class ConsultationController extends ChangeNotifier {
 
   Future<void> loadVetConsultations() async {
     await _guard(
-      () async => _consultations = await repository.listVetConsultations(),
+      () async => _consultations = _sortVetConsultations(
+        await repository.listVetConsultations(),
+      ),
     );
   }
+
+  Future<void> loadVetWorkspace({
+    required int veterinarianId,
+    required String? realtimeAccessToken,
+  }) async {
+    await loadVetConsultations();
+    await _watchVetInbox(
+      veterinarianId: veterinarianId,
+      accessToken: realtimeAccessToken,
+    );
+  }
+
+  Future<void> _watchVetInbox({
+    required int veterinarianId,
+    required String? accessToken,
+  }) async {
+    await vetInboxRealtimeGateway.stop();
+    _setVetInboxRealtimeConnected(false);
+    _hasVetInboxRealtimeSubscribed = false;
+    if (accessToken == null || accessToken.isEmpty) return;
+    try {
+      await vetInboxRealtimeGateway.watch(
+        veterinarianId: veterinarianId,
+        accessToken: accessToken,
+        onConsultationsChanged: _refreshVetInboxFromRealtime,
+        onConnectionChanged: _setVetInboxRealtimeConnected,
+      );
+    } catch (_) {
+      _setVetInboxRealtimeConnected(false);
+    }
+  }
+
+  void _setVetInboxRealtimeConnected(bool connected) {
+    final wasConnected = _vetInboxRealtimeConnected;
+    if (wasConnected == connected) return;
+    _vetInboxRealtimeConnected = connected;
+    if (connected) {
+      if (_hasVetInboxRealtimeSubscribed && !wasConnected) {
+        unawaited(_refreshVetInboxFromRealtime());
+      }
+      _hasVetInboxRealtimeSubscribed = true;
+    }
+    notifyListeners();
+  }
+
+  Future<void> _refreshVetInboxFromRealtime() async {
+    _vetInboxRefreshPending = true;
+    if (_refreshingVetInbox) return;
+    _refreshingVetInbox = true;
+    try {
+      while (_vetInboxRefreshPending) {
+        _vetInboxRefreshPending = false;
+        final latest = await repository.listVetConsultations();
+        _consultations = _sortVetConsultations(latest);
+        notifyListeners();
+      }
+    } catch (error) {
+      if (ApiClient.isAccessBoundaryFailure(error)) {
+        _consultations = [];
+        _error = ApiClient.describeError(error);
+        notifyListeners();
+      }
+    } finally {
+      _refreshingVetInbox = false;
+    }
+  }
+
+  List<ConsultationModel> _sortVetConsultations(
+    List<ConsultationModel> consultations,
+  ) {
+    final sorted = List<ConsultationModel>.of(consultations);
+    sorted.sort((a, b) {
+      final priority = _priorityRank(a).compareTo(_priorityRank(b));
+      if (priority != 0) return priority;
+      final aTime = a.updatedAt ?? a.createdAt;
+      final bTime = b.updatedAt ?? b.createdAt;
+      return bTime.compareTo(aTime);
+    });
+    return sorted;
+  }
+
+  int _priorityRank(ConsultationModel consultation) =>
+      consultation.priority.toLowerCase() == 'urgent' && !consultation.isClosed
+      ? 0
+      : 1;
 
   Future<void> loadOwnerWorkspace(int petId) async {
     await _guard(() async {
@@ -626,7 +723,12 @@ class ConsultationController extends ChangeNotifier {
     _sharedHealthCardsRefreshPending = false;
     _realtimeConnected = false;
     _hasRealtimeSubscribed = false;
+    _vetInboxRealtimeConnected = false;
+    _hasVetInboxRealtimeSubscribed = false;
+    _refreshingVetInbox = false;
+    _vetInboxRefreshPending = false;
     unawaited(realtimeGateway.stop());
+    unawaited(vetInboxRealtimeGateway.stop());
     _error = null;
     _retryContent = null;
     _retryClientMessageId = null;
@@ -696,6 +798,7 @@ class ConsultationController extends ChangeNotifier {
   @override
   void dispose() {
     unawaited(realtimeGateway.stop());
+    unawaited(vetInboxRealtimeGateway.stop());
     super.dispose();
   }
 }

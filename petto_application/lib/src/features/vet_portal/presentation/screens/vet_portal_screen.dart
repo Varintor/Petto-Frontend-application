@@ -37,9 +37,21 @@ class _VetPortalScreenState extends State<VetPortalScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<ConsultationController>().loadVetConsultations();
+      if (!mounted) return;
+      final auth = context.read<AuthController>();
+      final veterinarian = auth.currentUser;
+      if (veterinarian == null) {
+        unawaited(
+          context.read<ConsultationController>().loadVetConsultations(),
+        );
+        return;
       }
+      unawaited(
+        context.read<ConsultationController>().loadVetWorkspace(
+          veterinarianId: veterinarian.id,
+          realtimeAccessToken: auth.token,
+        ),
+      );
     });
   }
 

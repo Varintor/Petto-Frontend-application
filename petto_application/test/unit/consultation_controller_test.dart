@@ -9,6 +9,10 @@ import 'package:petto_application/src/features/vet_consultation/data/services/co
 import 'package:petto_application/src/features/vet_consultation/presentation/controllers/consultation_controller.dart';
 
 class _FakeConsultationRepository implements ConsultationRepository {
+  _FakeConsultationRepository() {
+    vetConsultations.add(consultation);
+  }
+
   final consultation = ConsultationModel(
     id: 10,
     petId: 20,
@@ -17,6 +21,7 @@ class _FakeConsultationRepository implements ConsultationRepository {
     createdAt: DateTime(2026, 8, 13, 9),
   );
   final messages = <ChatMessageModel>[];
+  final vetConsultations = <ConsultationModel>[];
   final clientMessageIds = <String>[];
   bool markedRead = false;
   bool failNextSend = false;
@@ -27,9 +32,8 @@ class _FakeConsultationRepository implements ConsultationRepository {
   final sharedAssessments = <SharedAssessmentModel>[];
 
   @override
-  Future<List<ConsultationModel>> listVetConsultations() async => [
-    consultation,
-  ];
+  Future<List<ConsultationModel>> listVetConsultations() async =>
+      List.of(vetConsultations);
 
   @override
   Future<List<ChatMessageModel>> listMessages(
@@ -375,6 +379,39 @@ class _FakeRealtimeGateway implements ConsultationRealtimeGateway {
   }
 }
 
+class _FakeVetInboxRealtimeGateway
+    implements VetConsultationInboxRealtimeGateway {
+  Future<void> Function()? onConsultationsChanged;
+  void Function(bool connected)? onConnectionChanged;
+  int? veterinarianId;
+  String? accessToken;
+  bool stopped = false;
+
+  @override
+  Future<void> watch({
+    required int veterinarianId,
+    required String accessToken,
+    required Future<void> Function() onConsultationsChanged,
+    required void Function(bool connected) onConnectionChanged,
+  }) async {
+    this.veterinarianId = veterinarianId;
+    this.accessToken = accessToken;
+    this.onConsultationsChanged = onConsultationsChanged;
+    this.onConnectionChanged = onConnectionChanged;
+    stopped = false;
+    onConnectionChanged(true);
+  }
+
+  @override
+  Future<void> stop() async {
+    stopped = true;
+  }
+
+  Future<void> emitConsultationsChanged() async {
+    await onConsultationsChanged?.call();
+  }
+}
+
 void main() {
   for (final status in [401, 403, 404]) {
     test(
@@ -452,6 +489,43 @@ void main() {
       expect(sent, isTrue);
       expect(controller.messages.single.senderType, 'vet');
       expect(controller.messages.single.content, 'Please send another photo.');
+    },
+  );
+
+  test(
+    'vet inbox receives new urgent consultations and prioritizes them',
+    () async {
+      final repository = _FakeConsultationRepository();
+      final inboxRealtime = _FakeVetInboxRealtimeGateway();
+      final controller = ConsultationController(
+        repository: repository,
+        vetInboxRealtimeGateway: inboxRealtime,
+      );
+
+      await controller.loadVetWorkspace(
+        veterinarianId: 30,
+        realtimeAccessToken: 'access-token',
+      );
+      expect(controller.vetInboxRealtimeConnected, isTrue);
+      expect(inboxRealtime.veterinarianId, 30);
+
+      repository.vetConsultations.add(
+        ConsultationModel(
+          id: 32,
+          petId: 21,
+          vetId: 30,
+          petName: 'Urgent Milo',
+          status: 'PENDING',
+          subject: 'Urgent Help',
+          priority: 'urgent',
+          createdAt: DateTime(2026, 9, 11, 12),
+        ),
+      );
+      await inboxRealtime.emitConsultationsChanged();
+
+      expect(controller.consultations, hasLength(2));
+      expect(controller.consultations.first.id, 32);
+      expect(controller.consultations.first.priority, 'urgent');
     },
   );
 

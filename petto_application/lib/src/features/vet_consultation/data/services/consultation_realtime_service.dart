@@ -17,6 +17,72 @@ abstract class ConsultationRealtimeGateway {
   Future<void> stop();
 }
 
+abstract class VetConsultationInboxRealtimeGateway {
+  Future<void> watch({
+    required int veterinarianId,
+    required String accessToken,
+    required Future<void> Function() onConsultationsChanged,
+    required void Function(bool connected) onConnectionChanged,
+  });
+
+  Future<void> stop();
+}
+
+/// Watches assignment and priority changes for the signed-in veterinarian.
+/// The event is only an invalidation signal; the REST endpoint remains the
+/// authoritative source for the complete, access-controlled inbox payload.
+class SupabaseVetConsultationInboxRealtimeGateway
+    implements VetConsultationInboxRealtimeGateway {
+  SupabaseVetConsultationInboxRealtimeGateway({SupabaseClient? client})
+    : _client = client;
+
+  final SupabaseClient? _client;
+  RealtimeChannel? _channel;
+
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
+
+  @override
+  Future<void> watch({
+    required int veterinarianId,
+    required String accessToken,
+    required Future<void> Function() onConsultationsChanged,
+    required void Function(bool connected) onConnectionChanged,
+  }) async {
+    await stop();
+    if (accessToken.isEmpty) {
+      onConnectionChanged(false);
+      return;
+    }
+
+    await _supabase.realtime.setAuth(accessToken);
+    final channel = _supabase
+        .channel('vet-consultations-$veterinarianId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'consultations',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'vet_id',
+            value: veterinarianId,
+          ),
+          callback: (_) => unawaited(onConsultationsChanged()),
+        );
+    _channel = channel;
+    channel.subscribe((status, _) {
+      if (_channel != channel) return;
+      onConnectionChanged(status == RealtimeSubscribeStatus.subscribed);
+    });
+  }
+
+  @override
+  Future<void> stop() async {
+    final channel = _channel;
+    _channel = null;
+    if (channel != null) await _supabase.removeChannel(channel);
+  }
+}
+
 /// Delivers the Postgres Changes row immediately for a responsive chat UI.
 /// REST remains the authoritative reconciliation path, so reconnects,
 /// incomplete payloads, and duplicate events remain safe.

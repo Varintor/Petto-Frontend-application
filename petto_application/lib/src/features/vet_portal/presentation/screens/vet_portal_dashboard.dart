@@ -29,6 +29,12 @@ class _DashboardView extends StatelessWidget {
         final pendingCount = consultations
             .where((item) => item.status.toUpperCase() == 'PENDING')
             .length;
+        final urgentCount = consultations
+            .where(
+              (item) =>
+                  item.priority.toLowerCase() == 'urgent' && !item.isClosed,
+            )
+            .length;
         return _VetScroll(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,6 +44,10 @@ class _DashboardView extends StatelessWidget {
                 subtitle: 'Assigned Petto consultations and shared records.',
               ),
               const SizedBox(height: 18),
+              if (urgentCount > 0) ...[
+                _UrgentInboxBanner(count: urgentCount, onOpen: onOpenMessages),
+                const SizedBox(height: 14),
+              ],
               _HeroPanel(
                 title: 'Consultation Workspace',
                 subtitle: consultations.isEmpty
@@ -119,6 +129,46 @@ class _DashboardView extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _UrgentInboxBanner extends StatelessWidget {
+  const _UrgentInboxBanner({required this.count, required this.onOpen});
+
+  final int count;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFECEC),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        key: const Key('vet-urgent-inbox-banner'),
+        borderRadius: BorderRadius.circular(22),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              const Icon(Icons.sos_rounded, color: Color(0xFFB42318)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$count urgent request${count == 1 ? '' : 's'} waiting',
+                  style: const TextStyle(
+                    color: Color(0xFF7A271A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const Icon(Icons.arrow_forward_rounded, color: Color(0xFFB42318)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
